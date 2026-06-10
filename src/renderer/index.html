@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="widget">
+    <div id="root">
+      <header>
+        <span id="status-dot" class="dot gray" title="status"></span>
+        <span class="title">Claude <span id="plan-label"></span></span>
+        <button id="btn-refresh" class="icon" title="Refresh now">&#x21bb;</button>
+        <button id="btn-settings" class="icon" title="Settings">&#x2699;</button>
+        <button id="btn-close" class="icon" title="Quit">&#x2715;</button>
+      </header>
+
+      <main id="bars"></main>
+
+      <footer>
+        <span id="message">Loading usage&hellip;</span>
+        <span id="updated"></span>
+      </footer>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

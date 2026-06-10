@@ -1,0 +1,14 @@
+{
+  "name": "claude-rate-monitor",
+  "version": "0.1.0",
+  "description": "Floating desktop widget showing Anthropic API rate limits in real time",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.4.0"
+  }
+}

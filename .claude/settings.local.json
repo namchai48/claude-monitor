@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(& \"$env:APPDATA\\\\nvm\\\\nvm.exe\" list; & \"$env:APPDATA\\\\nvm\\\\nvm.exe\" version)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(cmd /c \"nvm install 22.20.0\")",
+      "PowerShell(npm rebuild *)",
+      "PowerShell($env:Path = \"$PWD\\\\.tools\\\\node-v22.20.0-win-x64;\" + $env:Path; Set-Location node_modules\\\\electron; node install.js; Set-Location ..\\\\..; Test-Path node_modules\\\\electron\\\\dist\\\\electron.exe)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(& \".\\\\node_modules\\\\electron\\\\dist\\\\electron.exe\" .)"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="settings-page">
+    <form id="form">
+      <label>
+        Poll interval (seconds)
+        <input type="number" id="pollIntervalSec" min="15" max="600" step="5" />
+        <span class="hint">Usage polls are free — they consume no tokens.</span>
+      </label>
+
+      <label>
+        Alert when usage goes above (%)
+        <input type="number" id="alertAbovePct" min="10" max="99" step="5" />
+      </label>
+
+      <label class="inline">
+        <input type="checkbox" id="openAtLogin" />
+        Start automatically with Windows
+      </label>
+
+      <p class="hint">
+        Usage data comes from your Claude Code login (~/.claude). The widget
+        tracks the same 5-hour session and weekly limits shown by /usage.
+      </p>
+
+      <div class="buttons">
+        <button type="button" class="action secondary" id="btn-cancel">Cancel</button>
+        <button type="submit" class="action">Save</button>
+      </div>
+    </form>
+    <script src="settings-ui.js"></script>
+  </body>
+</html>
