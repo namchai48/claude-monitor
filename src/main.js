@@ -62,6 +62,13 @@ function createWidget() {
   widget.setAlwaysOnTop(true, "screen-saver");
   widget.loadFile(path.join(__dirname, "renderer", "index.html"));
 
+  // Show the last successful snapshot right away so the widget isn't empty
+  // while the first poll is in flight (or rate-limited).
+  widget.webContents.on("did-finish-load", () => {
+    const cached = settings.load().lastUsage;
+    if (cached) send({ ...cached, stale: true });
+  });
+
   let moveTimer = null;
   widget.on("moved", () => {
     clearTimeout(moveTimer);
@@ -129,12 +136,28 @@ function send(result) {
   }
 }
 
+// Exponential backoff when the endpoint rate-limits us (HTTP 429).
+let backoffSec = 0;
+
 async function tick() {
   const cfg = settings.load();
   const result = await fetchUsage();
+  let delaySec = Math.max(15, cfg.pollIntervalSec);
+  if (!result.ok && result.kind === "rate_limited") {
+    backoffSec = backoffSec ? Math.min(backoffSec * 2, 900) : delaySec * 2;
+    delaySec = Math.max(backoffSec, result.retryAfterSec || 0);
+    result.message = `Rate limited — retrying in ${formatDelay(delaySec)}`;
+  } else {
+    backoffSec = 0;
+  }
+  if (result.ok) settings.update({ lastUsage: result });
   send(result);
   checkAlerts(result, cfg);
-  pollTimer = setTimeout(tick, Math.max(15, cfg.pollIntervalSec) * 1000);
+  pollTimer = setTimeout(tick, delaySec * 1000);
+}
+
+function formatDelay(sec) {
+  return sec < 120 ? `${Math.round(sec)}s` : `${Math.round(sec / 60)}m`;
 }
 
 function restartPolling() {

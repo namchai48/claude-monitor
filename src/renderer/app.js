@@ -86,10 +86,11 @@ function refreshFooter() {
 function render(result) {
   latest = result;
   if (!result.ok) {
-    statusDot.className = "dot " + (result.kind === "network" ? "gray" : "red");
+    const transient = result.kind === "network" || result.kind === "rate_limited";
+    statusDot.className = "dot " + (transient ? "gray" : "red");
     messageEl.classList.add("error");
     messageEl.textContent = result.message || "Error";
-    updatedEl.textContent = "";
+    // Keep the bars and timestamp from the last good snapshot on screen.
     return;
   }
 
@@ -103,7 +104,8 @@ function render(result) {
   statusDot.className = "dot " + (worst === null ? "gray" : colorFor(worst));
 
   refreshFooter();
-  updatedEl.textContent = new Date(result.ts).toLocaleTimeString();
+  updatedEl.textContent =
+    (result.stale ? "cached " : "") + new Date(result.ts).toLocaleTimeString();
 }
 
 setInterval(refreshFooter, 30000);

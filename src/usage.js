@@ -87,6 +87,15 @@ async function fetchUsage() {
       message: "Token rejected — open Claude Code once to refresh it",
     };
   }
+  if (res.status === 429) {
+    const retryAfterSec = Number(res.headers.get("retry-after")) || null;
+    return {
+      ok: false,
+      kind: "rate_limited",
+      retryAfterSec,
+      message: "Rate limited",
+    };
+  }
   if (!res.ok) {
     return { ok: false, kind: "api", message: `HTTP ${res.status}` };
   }
