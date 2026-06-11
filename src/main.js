@@ -37,6 +37,7 @@ function createWidget() {
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
+    icon: path.join(__dirname, "..", "assets", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -96,6 +97,7 @@ function openSettingsWindow() {
     maximizable: false,
     title: "Settings",
     autoHideMenuBar: true,
+    icon: path.join(__dirname, "..", "assets", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -138,19 +140,34 @@ function send(result) {
 
 // Exponential backoff when the endpoint rate-limits us (HTTP 429).
 let backoffSec = 0;
+let lastResult = null;
+
+function isRateLimited() {
+  return (
+    lastResult &&
+    !lastResult.ok &&
+    lastResult.kind === "rate_limited" &&
+    lastResult.retryAt &&
+    Date.now() < lastResult.retryAt
+  );
+}
 
 async function tick() {
   const cfg = settings.load();
   const result = await fetchUsage();
   let delaySec = Math.max(15, cfg.pollIntervalSec);
   if (!result.ok && result.kind === "rate_limited") {
-    backoffSec = backoffSec ? Math.min(backoffSec * 2, 900) : delaySec * 2;
-    delaySec = Math.max(backoffSec, result.retryAfterSec || 0);
+    backoffSec = backoffSec ? Math.min(backoffSec * 2, 1800) : delaySec * 2;
+    // Add a 1-minute buffer on top of the server-suggested delay so we
+    // don't immediately re-trigger the rate limit by polling too soon.
+    delaySec = Math.max(backoffSec, result.retryAfterSec || 0) + 60;
+    result.retryAt = Date.now() + delaySec * 1000;
     result.message = `Rate limited — retrying in ${formatDelay(delaySec)}`;
   } else {
     backoffSec = 0;
   }
   if (result.ok) settings.update({ lastUsage: result });
+  lastResult = result;
   send(result);
   checkAlerts(result, cfg);
   pollTimer = setTimeout(tick, delaySec * 1000);
@@ -198,7 +215,15 @@ ipcMain.handle("settings:save", (_e, payload) => {
 ipcMain.on("app:quit", () => app.quit());
 ipcMain.on("app:open-settings", () => openSettingsWindow());
 ipcMain.on("app:close-settings", () => settingsWin?.close());
-ipcMain.on("poll:now", () => restartPolling());
+ipcMain.on("poll:now", () => {
+  // Don't let manual refresh clicks bypass an active rate-limit backoff —
+  // re-triggering the request mid-lockout can extend it indefinitely.
+  if (isRateLimited()) {
+    send(lastResult);
+    return;
+  }
+  restartPolling();
+});
 
 app.whenReady().then(() => {
   createWidget();

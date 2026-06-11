@@ -83,16 +83,53 @@ function refreshFooter() {
   messageEl.textContent = parts.join(" · ") || "No active limits reported";
 }
 
+function formatCountdown(ms) {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+let rateLimitTimer = null;
+
+function stopRateLimitCountdown() {
+  if (rateLimitTimer) {
+    clearInterval(rateLimitTimer);
+    rateLimitTimer = null;
+  }
+}
+
+function startRateLimitCountdown(retryAt) {
+  stopRateLimitCountdown();
+  const update = () => {
+    const remaining = retryAt - Date.now();
+    if (remaining <= 0) {
+      messageEl.textContent = "Rate limited — updating now…";
+      stopRateLimitCountdown();
+      return;
+    }
+    messageEl.textContent = `Rate limited — retrying in ${formatCountdown(remaining)}`;
+  };
+  update();
+  rateLimitTimer = setInterval(update, 1000);
+}
+
 function render(result) {
   latest = result;
   if (!result.ok) {
     const transient = result.kind === "network" || result.kind === "rate_limited";
     statusDot.className = "dot " + (transient ? "gray" : "red");
     messageEl.classList.add("error");
-    messageEl.textContent = result.message || "Error";
+    if (result.kind === "rate_limited" && result.retryAt) {
+      startRateLimitCountdown(result.retryAt);
+    } else {
+      stopRateLimitCountdown();
+      messageEl.textContent = result.message || "Error";
+    }
     // Keep the bars and timestamp from the last good snapshot on screen.
     return;
   }
+  stopRateLimitCountdown();
 
   planLabel.textContent =
     "· " + (result.subscriptionType ? result.subscriptionType : "plan");
