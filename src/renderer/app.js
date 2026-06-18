@@ -147,3 +147,27 @@ function render(result) {
 
 setInterval(refreshFooter, 30000);
 api.onUsageUpdate(render);
+
+// Drag-to-resize from the bottom-right grip handle.
+const resizeHandle = document.getElementById("resize-handle");
+resizeHandle.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  const startX = e.screenX;
+  const startY = e.screenY;
+  const startW = window.innerWidth;
+  const startH = window.innerHeight;
+
+  function onMove(ev) {
+    const w = Math.max(280, startW + ev.screenX - startX);
+    const h = Math.max(160, startH + ev.screenY - startY);
+    api.resizeWindow(w, h);
+  }
+
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+});

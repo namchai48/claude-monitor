@@ -50,28 +50,37 @@ function normalize(raw, subscriptionType) {
   return { buckets, extra, subscriptionType };
 }
 
-async function fetchUsage() {
-  const cred = readCredentials();
-  if (!cred) {
-    return {
-      ok: false,
-      kind: "no_creds",
-      message: "Claude Code credentials not found — log in with `claude` first",
-    };
-  }
-  if (cred.expiresAt && Date.now() > cred.expiresAt) {
-    return {
-      ok: false,
-      kind: "token_expired",
-      message: "Token expired — open Claude Code once to refresh it",
-    };
+async function fetchUsage(overrideToken = null) {
+  let token;
+  let subscriptionType;
+
+  if (overrideToken) {
+    token = overrideToken;
+  } else {
+    const cred = readCredentials();
+    if (!cred) {
+      return {
+        ok: false,
+        kind: "no_creds",
+        message: "No credentials found — enter your access token in Settings, or log in with Claude Code",
+      };
+    }
+    if (cred.expiresAt && Date.now() > cred.expiresAt) {
+      return {
+        ok: false,
+        kind: "token_expired",
+        message: "Token expired — open Claude Code to refresh, or enter a new token in Settings",
+      };
+    }
+    token = cred.accessToken;
+    subscriptionType = cred.subscriptionType;
   }
 
   let res;
   try {
     res = await fetch(USAGE_URL, {
       headers: {
-        Authorization: `Bearer ${cred.accessToken}`,
+        Authorization: `Bearer ${token}`,
         "anthropic-beta": "oauth-2025-04-20",
       },
       signal: AbortSignal.timeout(15000),
@@ -84,7 +93,9 @@ async function fetchUsage() {
     return {
       ok: false,
       kind: "token_expired",
-      message: "Token rejected — open Claude Code once to refresh it",
+      message: overrideToken
+        ? "Token rejected — check your access token in Settings"
+        : "Token rejected — open Claude Code to refresh, or enter a new token in Settings",
     };
   }
   if (res.status === 429) {
@@ -104,7 +115,7 @@ async function fetchUsage() {
   if (!raw) {
     return { ok: false, kind: "api", message: "Unexpected response format" };
   }
-  return { ok: true, ts: Date.now(), ...normalize(raw, cred.subscriptionType) };
+  return { ok: true, ts: Date.now(), ...normalize(raw, subscriptionType) };
 }
 
 module.exports = { fetchUsage };

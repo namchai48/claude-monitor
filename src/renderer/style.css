@@ -13,6 +13,7 @@ body {
 }
 
 #root {
+  position: relative;
   background: rgba(24, 24, 28, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
@@ -22,6 +23,28 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+
+#resize-handle {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  -webkit-app-region: no-drag;
+  opacity: 0.25;
+  background-image:
+    radial-gradient(circle, #ccc 1px, transparent 1px),
+    radial-gradient(circle, #ccc 1px, transparent 1px),
+    radial-gradient(circle, #ccc 1px, transparent 1px),
+    radial-gradient(circle, #ccc 1px, transparent 1px),
+    radial-gradient(circle, #ccc 1px, transparent 1px),
+    radial-gradient(circle, #ccc 1px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: 6px 6px, 10px 6px, 6px 10px, 10px 10px, 10px 14px, 14px 14px;
+  background-repeat: no-repeat;
+}
+#resize-handle:hover { opacity: 0.7; }
 
 /* ---- header ---- */
 header {
@@ -171,7 +194,30 @@ body.settings-page label.inline {
   gap: 8px;
 }
 
+.token-row {
+  display: flex;
+  gap: 6px;
+}
+
+.token-row input {
+  flex: 1;
+}
+
+.token-row .action {
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+body.settings-page code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 10px;
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 body.settings-page input[type="password"],
+body.settings-page input[type="text"],
 body.settings-page input[type="number"],
 body.settings-page select {
   background: #26262b;

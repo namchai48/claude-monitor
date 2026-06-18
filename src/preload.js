@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld("api", {
   openSettings: () => ipcRenderer.send("app:open-settings"),
   closeSettings: () => ipcRenderer.send("app:close-settings"),
   pollNow: () => ipcRenderer.send("poll:now"),
+  resizeWindow: (w, h) => ipcRenderer.send("window:resize", { w, h }),
 });

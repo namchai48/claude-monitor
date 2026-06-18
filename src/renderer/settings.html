@@ -26,10 +26,17 @@
         Start automatically with Windows
       </label>
 
-      <p class="hint">
-        Usage data comes from your Claude Code login (~/.claude). The widget
-        tracks the same 5-hour session and weekly limits shown by /usage.
-      </p>
+      <label>
+        Access token (optional)
+        <div class="token-row">
+          <input type="password" id="accessToken" placeholder="Paste OAuth access token…" autocomplete="off" />
+          <button type="button" class="action secondary" id="btn-show-token">Show</button>
+        </div>
+        <span class="hint">
+          Leave empty to use <code>~/.claude/.credentials.json</code> (Claude Code CLI).<br>
+          Claude app users: open DevTools in the Claude desktop app → Application → Storage → find <code>accessToken</code> and paste it here.
+        </span>
+      </label>
 
       <div class="buttons">
         <button type="button" class="action secondary" id="btn-cancel">Cancel</button>

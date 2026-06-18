@@ -29,13 +29,16 @@ if (!app.requestSingleInstanceLock()) {
 
 function createWidget() {
   const cfg = settings.load();
+  const size = cfg.windowSize || { width: 320, height: 190 };
   const opts = {
-    width: 320,
-    height: 190,
+    width: size.width,
+    height: size.height,
+    minWidth: 280,
+    minHeight: 160,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
     skipTaskbar: true,
     icon: path.join(__dirname, "..", "assets", "icon.ico"),
     webPreferences: {
@@ -79,6 +82,17 @@ function createWidget() {
       settings.update({ windowPos: { x, y } });
     }, 500);
   });
+
+  let resizeTimer = null;
+  widget.on("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!widget) return;
+      const [width, height] = widget.getSize();
+      settings.update({ windowSize: { width, height } });
+    }, 500);
+  });
+
   widget.on("closed", () => {
     widget = null;
   });
@@ -91,7 +105,7 @@ function openSettingsWindow() {
   }
   settingsWin = new BrowserWindow({
     width: 380,
-    height: 320,
+    height: 420,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -154,7 +168,7 @@ function isRateLimited() {
 
 async function tick() {
   const cfg = settings.load();
-  const result = await fetchUsage();
+  const result = await fetchUsage(cfg.accessToken || null);
   let delaySec = Math.max(15, cfg.pollIntervalSec);
   if (!result.ok && result.kind === "rate_limited") {
     backoffSec = backoffSec ? Math.min(backoffSec * 2, 1800) : delaySec * 2;
@@ -189,6 +203,7 @@ ipcMain.handle("settings:get", () => {
     pollIntervalSec: cfg.pollIntervalSec,
     alertAbovePct: cfg.alertAbovePct,
     openAtLogin: cfg.openAtLogin,
+    accessToken: cfg.accessToken || "",
   };
 });
 
@@ -207,9 +222,18 @@ ipcMain.handle("settings:save", (_e, payload) => {
     clean.openAtLogin = !!payload.openAtLogin;
     app.setLoginItemSettings({ openAtLogin: clean.openAtLogin });
   }
+  if (payload.accessToken !== undefined) {
+    clean.accessToken = String(payload.accessToken).trim();
+  }
   settings.update(clean);
   restartPolling();
   return true;
+});
+
+ipcMain.on("window:resize", (_e, { w, h }) => {
+  if (widget && !widget.isDestroyed()) {
+    widget.setSize(Math.round(w), Math.round(h));
+  }
 });
 
 ipcMain.on("app:quit", () => app.quit());

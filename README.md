@@ -29,7 +29,7 @@ The widget reuses the OAuth token that Claude Code stores at `~/.claude/.credent
 
 ```sh
 git clone <this-repo>
-cd monitor-app
+cd claude-monitor
 npm install
 npm start
 ```

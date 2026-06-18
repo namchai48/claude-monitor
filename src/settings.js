@@ -7,6 +7,8 @@ const DEFAULTS = {
   alertAbovePct: 80, // notify when a bucket's usage exceeds this
   openAtLogin: false,
   windowPos: null,
+  windowSize: null,  // { width, height }
+  accessToken: "",   // manually entered OAuth token; overrides ~/.claude/.credentials.json
 };
 
 function settingsPath() {
