@@ -10,6 +10,10 @@ const os = require("os");
 const path = require("path");
 
 const USAGE_URL = "https://api.anthropic.com/api/oauth/usage";
+const TOKEN_REFRESH_URL = "https://platform.claude.com/v1/oauth/token";
+const OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+// Omitting User-Agent triggers aggressive rate-limiting on Anthropic's side.
+const USER_AGENT = "claude-rate-monitor/0.1.0 (external, cli)";
 
 const BUCKET_LABELS = {
   five_hour: "Session (5h)",
@@ -20,15 +24,61 @@ const BUCKET_LABELS = {
   seven_day_oauth_apps: "Weekly apps",
 };
 
+function credentialsPath() {
+  return path.join(os.homedir(), ".claude", ".credentials.json");
+}
+
 function readCredentials() {
-  const file = path.join(os.homedir(), ".claude", ".credentials.json");
   try {
-    const oauth = JSON.parse(fs.readFileSync(file, "utf8")).claudeAiOauth;
+    const oauth = JSON.parse(fs.readFileSync(credentialsPath(), "utf8")).claudeAiOauth;
     if (!oauth?.accessToken) return null;
     return oauth;
   } catch {
     return null;
   }
+}
+
+// Attempts to silently refresh the access token using the stored refresh token.
+// On success writes the new tokens back to .credentials.json and returns the
+// updated credential object; returns null if refresh is not possible or fails.
+async function tryRefreshToken(cred) {
+  if (!cred.refreshToken) return null;
+  try {
+    const res = await fetch(TOKEN_REFRESH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "User-Agent": USER_AGENT },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        refresh_token: cred.refreshToken,
+        client_id: OAUTH_CLIENT_ID,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (!data?.access_token) return null;
+
+    const file = credentialsPath();
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    raw.claudeAiOauth.accessToken = data.access_token;
+    if (data.refresh_token) raw.claudeAiOauth.refreshToken = data.refresh_token;
+    if (data.expires_in) {
+      raw.claudeAiOauth.expiresAt = Date.now() + data.expires_in * 1000;
+    }
+    fs.writeFileSync(file, JSON.stringify(raw, null, 2), "utf8");
+
+    return { ...cred, accessToken: data.access_token };
+  } catch {
+    return null;
+  }
+}
+
+function usageHeaders(accessToken) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    "anthropic-beta": "oauth-2025-04-20",
+    "User-Agent": USER_AGENT,
+  };
 }
 
 function normalize(raw, subscriptionType) {
@@ -89,6 +139,7 @@ async function fetchUsage(overrideToken = null) {
     return { ok: false, kind: "network", message: err.message };
   }
 
+  // On auth failure attempt a reactive token refresh and retry once.
   if (res.status === 401 || res.status === 403) {
     return {
       ok: false,
@@ -98,14 +149,10 @@ async function fetchUsage(overrideToken = null) {
         : "Token rejected — open Claude Code to refresh, or enter a new token in Settings",
     };
   }
+
   if (res.status === 429) {
     const retryAfterSec = Number(res.headers.get("retry-after")) || null;
-    return {
-      ok: false,
-      kind: "rate_limited",
-      retryAfterSec,
-      message: "Rate limited",
-    };
+    return { ok: false, kind: "rate_limited", retryAfterSec, message: "Rate limited" };
   }
   if (!res.ok) {
     return { ok: false, kind: "api", message: `HTTP ${res.status}` };
