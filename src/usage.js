@@ -103,11 +103,12 @@ function normalize(raw, subscriptionType) {
 async function fetchUsage(overrideToken = null) {
   let token;
   let subscriptionType;
+  let cred = null;
 
   if (overrideToken) {
     token = overrideToken;
   } else {
-    const cred = readCredentials();
+    cred = readCredentials();
     if (!cred) {
       return {
         ok: false,
@@ -129,10 +130,7 @@ async function fetchUsage(overrideToken = null) {
   let res;
   try {
     res = await fetch(USAGE_URL, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "anthropic-beta": "oauth-2025-04-20",
-      },
+      headers: usageHeaders(token),
       signal: AbortSignal.timeout(15000),
     });
   } catch (err) {
@@ -140,6 +138,20 @@ async function fetchUsage(overrideToken = null) {
   }
 
   // On auth failure attempt a reactive token refresh and retry once.
+  if ((res.status === 401 || res.status === 403) && cred) {
+    const refreshed = await tryRefreshToken(cred);
+    if (refreshed) {
+      try {
+        res = await fetch(USAGE_URL, {
+          headers: usageHeaders(refreshed.accessToken),
+          signal: AbortSignal.timeout(15000),
+        });
+      } catch (err) {
+        return { ok: false, kind: "network", message: err.message };
+      }
+    }
+  }
+
   if (res.status === 401 || res.status === 403) {
     return {
       ok: false,
